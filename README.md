@@ -3,4 +3,7 @@ Deaths are apportioned to cohorts using the procedure in the stata file: deaths_
 
 Population estimates from SEER, and are available here: https://seer.cancer.gov/popdata/download.html
 
-The population estimates are apportioned to cohorts and then these two are then merged in the stata file: Merging2006-2023
+The population estimates are apportioned to cohorts and then these two are then merged in the stata file: merging_2006-2023
+
+**********************
+My R code for estimating effects of covid on male and female mortality in the US are included as well. 
