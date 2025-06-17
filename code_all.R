@@ -292,14 +292,10 @@ cohort_discontinuity <-  function(data,
 #### COMPUTATION
 #######################
 
-coh_lag2_values <- c(5, 6)#, 7)
-coh_lag2_values <- c(5)
+coh_lag2_values <- c(5, 6)
 sexes <- c("1", "2")
-sexes <- c("1")
 dirs <- c("horizontal", "oblique")
-dirs <- c("horizontal")
 methods <- c("linear", "poisson")
-methods <- c("linear")
 
 for (method in methods){
   
