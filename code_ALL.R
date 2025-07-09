@@ -30,12 +30,12 @@ df$c_mo <- (df$y - 2013)*12 + df$mo
 set.seed(978653421)
 # years/months are conceptions resulting in births during the GR
 # assuming 9 months between a conception and birth
-cv_yr_beg <- 2020
+cv_yr_beg <- 2021
 cv_mn_beg <- 1
-cv_yr_end <- 2022
+cv_yr_end <- 2021
 cv_mn_end <- 12
 t_delta   <- 12*cv_yr_end + cv_mn_end - (12*cv_yr_beg + cv_mn_beg) + 1
-coh_beg   <- 1924
+coh_beg   <- 1930
 coh_end   <- 2010
 n_coh     <- coh_end-coh_beg + 1
 coh_lag1  <- 1
@@ -97,25 +97,34 @@ cohort_discontinuity <-  function(data,
     c <- unique(data$cohort)[i]
     if (c >= cohort_start & c <= cohort_end) {
       # Targeted cohort and months whose counterfactuals are predicted
+      # print (c)
       target <- data[data$cohort==c & data$cumu_month>=cumu_start & data$cumu_month<=cumu_end,]
       target$fe <- target$cmonth #seq(1, cumu_end-cumu_start+1)
       
       # Construct reference data (simplified for unweighted case)
       construct <- data.frame()
+      if (shock_year_start == 2020){
+        a <- 0
+      }else if (shock_year_start == 2021){
+        a <- 1
+      }else {
+        a <- 2
+      }
+      
       for (t in smooth_cohort_lag1:smooth_cohort_lag2) {
         if (direction == "horizontal"){
           construct <- rbind(
             construct,
-            data[data$cohort==unique(target$cohort)-t &
-                   data$cyear %in% unique(target$cyear)-t &
-                   data$cumu_month %in% (target$cumu_month[1:12]-12*t),]
+            data[data$cohort==(unique(target$cohort)-t-a) &
+                   data$cyear %in% (unique(target$cyear)-t-a) &
+                   data$cumu_month %in% (target$cumu_month[1:12]-12*(t+a)),]
           )
         }else{
           construct <- rbind(
             construct,
             data[data$cohort==unique(target$cohort) &
-                   data$cyear == unique(target$cyear)[1]-t &
-                   data$cumu_month %in% (target$cumu_month[1:12]-12*t),]
+                   data$cyear == unique(target$cyear)[1]-t-a &
+                   data$cumu_month %in% (target$cumu_month[1:12]-12*(t+a)),]
           )
         }
         
@@ -292,75 +301,87 @@ cohort_discontinuity <-  function(data,
 #### COMPUTATION
 #######################
 
-coh_lag2_values <- c(5, 6)
+coh_lag2_values <- c(5, 6)#, 7)
+#coh_lag2_values <- c(5)
 sexes <- c("1", "2")
+#sexes <- c("1")
 dirs <- c("horizontal", "oblique")
+#dirs <- c("horizontal")
 methods <- c("linear", "poisson")
+#methods <- c("linear")
 
-for (method in methods){
-  
-  for (dir in dirs){
+
+for (year in 2020:2022){
+
+  for (method in methods){
     
-    for (sex in sexes){
+    for (dir in dirs){
       
-      df2 <- subset(df, SEXE == sex)
-      
-      df2$ardy <- df2$y - df2$cohort
-      
-      df2 <- df2 [, c("cohort", "c_mo", "y", "mo", "ardy", "ep", "deaths", "mr")]
-      
-      df2 <- subset(df2, cohort > 1917 & cohort < 2020)
-      
-      # rename
-      colnames(df2) <-  c("cohort","cumu_month","cyear","cmonth","age","ep", "deaths", "mortality")
-      
-      # cumulative months
-      df2 <- df2 %>%
-        arrange(cohort,cyear,cmonth) %>%
-        group_by(cyear,cmonth) %>%
-        mutate(cumu_month=cur_group_id())
-      
-      for (lag_value in coh_lag2_values) {
-        # Set coh_lag2 for this iteration
-        coh_lag2 <- lag_value
+      for (sex in sexes){
         
-        # Print current value being processed
-        cat("Processing coh_lag2 = ", coh_lag2, "\n", "Sex: ", sex,
-            "\n", "Dir: ", dir, "\n", "Meth: ", method)
+        df2 <- subset(df, SEXE == sex)
         
-        # Use the function to derive results of cohort loss
-        cohort_ate <- cohort_discontinuity(data=df2,
-                                           shock_year_start=cv_yr_beg,
-                                           shock_month_start=cv_mn_beg,
-                                           shock_year_end=cv_yr_end,
-                                           shock_month_end=cv_mn_end,
-                                           cohort_start=coh_beg,
-                                           cohort_end=coh_end,
-                                           smooth_cohort_lag1=coh_lag1, ## c-2
-                                           smooth_cohort_lag2=coh_lag2, ## c-6
-                                           ci=ci_alpha,
-                                           direction = dir,
-                                           method = method,
-                                           weighting = "none")
+        df2$ardy <- df2$y - df2$cohort
         
-        # Write estimate and percent change with CIs
-        loss <- cohort_ate %>% select(-c("residuals_regression","delta_c_list"))
+        df2 <- df2 [, c("cohort", "c_mo", "y", "mo", "ardy", "ep", "deaths", "mr")]
         
-        # Create filename with the lag value
-        filename <- paste0("~/NIH/Results/FIN/dir_", dir,"_meth_", method,
-                          "_sex_", sex,  "lag_", lag_value, ".csv")
-        #write.csv(loss, filename, row.names = FALSE)
+        df2 <- subset(df2, cohort > 1917 & cohort < 2020)
         
-        # Save the cohort_ate to a variable with the corresponding name
-        assign(paste0("cohort_ate", lag_value), cohort_ate)
+        # rename
+        colnames(df2) <-  c("cohort","cumu_month","cyear","cmonth","age","ep", "deaths", "mortality")
         
-        cat("Completed coh_lag2 =", coh_lag2, "\n")
+        # cumulative months
+        df2 <- df2 %>%
+          arrange(cohort,cyear,cmonth) %>%
+          group_by(cyear,cmonth) %>%
+          mutate(cumu_month=cur_group_id())
+        
+        for (lag_value in coh_lag2_values) {
+          # Set coh_lag2 for this iteration
+          coh_lag2 <- lag_value
+          
+          # Print current value being processed
+          cat("Processing coh_lag2 = ", coh_lag2, "\n", "Sex: ", sex,
+              "\n", "Dir: ", dir, "\n", "Meth: ", method, "\n, "Year: ", year)
+          
+          
+          cv_yr_beg <- year
+          cv_yr_end <- year
+          
+          # Use the function to derive results of cohort loss
+          cohort_ate <- cohort_discontinuity(data=df2,
+                                             shock_year_start=cv_yr_beg,
+                                             shock_month_start=cv_mn_beg,
+                                             shock_year_end=cv_yr_end,
+                                             shock_month_end=cv_mn_end,
+                                             cohort_start=coh_beg,
+                                             cohort_end=coh_end,
+                                             smooth_cohort_lag1=coh_lag1, ## c-2
+                                             smooth_cohort_lag2=coh_lag2, ## c-6
+                                             ci=ci_alpha,
+                                             direction = dir,
+                                             method = method,
+                                             weighting = "none")
+          
+          # Write estimate and percent change with CIs
+          loss <- cohort_ate %>% select(-c("residuals_regression","delta_c_list"))
+          
+          # Create filename with the lag value
+          filename <- paste0("~/NIH/Results/FIN/dir_", dir,"_meth_", method,
+                            "_sex_", sex, "_year_", year,  "lag_", lag_value, ".csv")
+          write.csv(loss, filename, row.names = FALSE)
+          
+          # Save the cohort_ate to a variable with the corresponding name
+          assign(paste0("cohort_ate", lag_value), cohort_ate)
+          
+          cat("Completed coh_lag2 =", coh_lag2, "\n")
+        }
       }
     }
+    
+    
   }
-  
-  
+
 }
-
-
+  
 cat("All iterations completed.\n")
